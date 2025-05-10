@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox spacing="10" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/17" fx:controller="com.hotel.controllers.InvoiceController" stylesheets="@../styles/invoice.css">
+    <padding>
+        <Insets top="10" right="10" bottom="10" left="10"/>
+    </padding>
+
+    <!-- Table Section -->
+    <TableView fx:id="invoiceTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="colInvoiceId" text="Invoice #" prefWidth="80"/>
+            <TableColumn fx:id="colBookingId" text="Booking #" prefWidth="80"/>
+            <TableColumn fx:id="colCustomerId" text="Customer #" prefWidth="80"/>
+            <TableColumn fx:id="colIssueDate" text="Issue Date" prefWidth="100"/>
+            <TableColumn fx:id="colDueDate" text="Due Date" prefWidth="100"/>
+            <TableColumn fx:id="colTotalAmount" text="Total" prefWidth="100"/>
+            <TableColumn fx:id="colPaidAmount" text="Paid" prefWidth="100"/>
+            <TableColumn fx:id="colBalanceDue" text="Balance" prefWidth="100"/>
+            <TableColumn fx:id="colStatus" text="Status" prefWidth="100"/>
+        </columns>
+    </TableView>
+
+    <!-- Invoice Details Section -->
+    <GridPane hgap="10" vgap="5">
+        <padding>
+            <Insets top="10"/>
+        </padding>
+
+        <!-- Invoice Details -->
+        <Label text="Invoice #:" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+        <Label fx:id="invoiceIdLabel" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+        <Label text="Booking #:" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+        <TextField fx:id="bookingIdField" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+
+        <Label text="Customer #:" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+        <TextField fx:id="customerIdField" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+
+        <Label text="Issue Date:" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+        <DatePicker fx:id="issueDatePicker" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+
+        <Label text="Due Date:" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
+        <DatePicker fx:id="dueDatePicker" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+
+        <Label text="Total Amount:" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+        <TextField fx:id="totalAmountField" GridPane.columnIndex="1" GridPane.rowIndex="5"/>
+
+        <Label text="Status:" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
+        <ComboBox fx:id="statusComboBox" GridPane.columnIndex="1" GridPane.rowIndex="6"/>
+
+        <!-- Payment Section -->
+        <VBox spacing="5" GridPane.columnSpan="2" GridPane.rowIndex="7">
+            <Label text="Record Payment" style="-fx-font-weight: bold;"/>
+            <HBox spacing="10">
+                <TextField fx:id="paymentAmountField" promptText="Payment Amount"/>
+                <Button text="Record Payment" onAction="#handleRecordPayment"/>
+            </HBox>
+        </VBox>
+
+        <!-- Action Buttons -->
+        <HBox spacing="10" alignment="CENTER_RIGHT" GridPane.columnSpan="2" GridPane.rowIndex="8">
+            <Button text="Create New" onAction="#handleCreateInvoice"/>
+            <Button text="Update" onAction="#handleUpdateInvoice"/>
+            <Button text="Delete" onAction="#handleDeleteInvoice"/>
+            <Button text="Clear" onAction="#handleClearFields"/>
+        </HBox>
+
+        <!-- Message Label -->
+        <Label fx:id="messageLabel" wrapText="true" GridPane.columnSpan="2" GridPane.rowIndex="9"/>
+    </GridPane>
+</VBox>
