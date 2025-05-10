@@ -12,7 +12,7 @@ import javafx.scene.control.cell.PropertyValueFactory;
 
 import java.net.URL;
 import java.sql.SQLException;
-import java.util.Arrays;
+
 import java.util.List;
 import java.util.ResourceBundle;
 
@@ -32,11 +32,18 @@ public class RoomController implements Initializable {
     @FXML private ComboBox<String> statusComboBox;
     @FXML private Button updateStatusButton;
     @FXML private Label messageLabel;
+    @FXML private TextField searchField;
+    @FXML private ComboBox<String> filterTypeComboBox;
+    @FXML private ComboBox<String> filterStatusComboBox;
 
     private RoomDAOImpl roomDAO;
     private ObservableList<Room> roomList;
     private final ObservableList<String> statusOptions = FXCollections.observableArrayList(
         "Available", "Booked", "Cleaning", "Out of Service"
+    );
+
+    private final ObservableList<String> roomTypes = FXCollections.observableArrayList(
+        "Single", "Double", "Suite", "Deluxe"
     );
 
     @Override
@@ -46,6 +53,13 @@ public class RoomController implements Initializable {
 
         // Initialize the status options
         statusComboBox.setItems(statusOptions);
+        filterStatusComboBox.setItems(statusOptions);
+        filterTypeComboBox.setItems(roomTypes);
+
+        // Add listeners for filters
+        searchField.textProperty().addListener((observable, oldValue, newValue) -> applyFilters());
+        filterTypeComboBox.valueProperty().addListener((observable, oldValue, newValue) -> applyFilters());
+        filterStatusComboBox.valueProperty().addListener((observable, oldValue, newValue) -> applyFilters());
 
         // Set up table columns
         roomNumberColumn.setCellValueFactory(new PropertyValueFactory<>("roomNumber"));
@@ -129,5 +143,37 @@ public class RoomController implements Initializable {
 
     private void clearMessage() {
         messageLabel.setText("");
+    }
+
+    @FXML
+    private void handleClearFilters() {
+        searchField.clear();
+        filterTypeComboBox.setValue(null);
+        filterStatusComboBox.setValue(null);
+        loadRoomData();
+    }
+
+    @FXML
+    private void handleRefresh() {
+        loadRoomData();
+    }
+
+    private void applyFilters() {
+        String searchText = searchField.getText().toLowerCase();
+        String selectedType = filterTypeComboBox.getValue();
+        String selectedStatus = filterStatusComboBox.getValue();
+
+        ObservableList<Room> filteredList = roomList.filtered(room -> {
+            boolean matchesSearch = searchText.isEmpty() ||
+                String.valueOf(room.getRoomNumber()).contains(searchText) ||
+                room.getType().toLowerCase().contains(searchText);
+
+            boolean matchesType = selectedType == null || room.getType().equals(selectedType);
+            boolean matchesStatus = selectedStatus == null || room.getStatus().equals(selectedStatus);
+
+            return matchesSearch && matchesType && matchesStatus;
+        });
+
+        roomTable.setItems(filteredList);
     }
 } 
