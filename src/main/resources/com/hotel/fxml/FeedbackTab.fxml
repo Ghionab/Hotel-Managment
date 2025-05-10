@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox spacing="10" xmlns:fx="http://javafx.com/fxml" fx:controller="com.hotel.controllers.FeedbackController" stylesheets="@../styles/feedback.css">
+    <padding>
+        <Insets top="20" right="20" bottom="20" left="20"/>
+    </padding>
+
+    <!-- Add Feedback Section -->
+    <TitledPane text="Add New Feedback" expanded="false">
+        <VBox spacing="10">
+            <GridPane hgap="10" vgap="10">
+                <padding>
+                    <Insets top="10" right="10" bottom="10" left="10"/>
+                </padding>
+
+                <Label text="Customer:" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                <ComboBox fx:id="customerComboBox" prefWidth="200" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+                <Label text="Booking:" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                <ComboBox fx:id="bookingComboBox" prefWidth="200" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+
+                <Label text="Rating:" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                <ComboBox fx:id="ratingComboBox" prefWidth="200" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+
+                <Label text="Comments:" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+                <TextArea fx:id="commentsArea" prefRowCount="3" wrapText="true" 
+                         GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+
+                <Button text="Submit Feedback" onAction="#handleSubmitFeedback" 
+                        GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+            </GridPane>
+        </VBox>
+    </TitledPane>
+
+    <!-- Feedback List Section -->
+    <TitledPane text="Feedback List" expanded="true">
+        <VBox spacing="10">
+            <!-- Search and Filter Controls -->
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <TextField fx:id="searchField" promptText="Search feedback..." prefWidth="200"/>
+                <ComboBox fx:id="filterRatingComboBox" promptText="Filter by rating"/>
+                <Button text="Clear Filters" onAction="#handleClearFilters"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button text="Refresh" onAction="#handleRefresh"/>
+            </HBox>
+
+            <!-- Feedback Table -->
+            <TableView fx:id="feedbackTable" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="customerNameColumn" text="Customer"/>
+                    <TableColumn fx:id="bookingIdColumn" text="Booking ID"/>
+                    <TableColumn fx:id="ratingColumn" text="Rating"/>
+                    <TableColumn fx:id="commentsColumn" text="Comments"/>
+                    <TableColumn fx:id="dateColumn" text="Date"/>
+                </columns>
+            </TableView>
+        </VBox>
+    </TitledPane>
+</VBox>
