@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.text.Text?>
+
+<ScrollPane fitToWidth="true" xmlns:fx="http://javafx.com/fxml" fx:controller="com.hotel.controllers.DashboardController" stylesheets="@../styles/dashboard.css">
+    <VBox spacing="20" styleClass="dashboard-container">
+        <padding>
+            <Insets top="20" right="20" bottom="20" left="20"/>
+        </padding>
+
+        <!-- Room Status Section -->
+        <VBox spacing="10" styleClass="metric-section">
+            <Label text="Room Status" styleClass="section-header"/>
+            <Label fx:id="totalRoomsLabel" styleClass="metric-value" text="Total Rooms: 0"/>
+            <GridPane hgap="20" vgap="10">
+                <VBox GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="metric-card">
+                    <Label text="Room Occupancy"/>
+                    <ProgressBar fx:id="roomOccupancyProgress" progress="0.0" styleClass="occupancy-progress"/>
+                </VBox>
+                <VBox GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="metric-card">
+                    <Label text="Available Rooms"/>
+                    <Label fx:id="availableRoomsLabel" styleClass="metric-value"/>
+                </VBox>
+                <VBox GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="metric-card">
+                    <Label text="Cleaning Rooms"/>
+                    <Label fx:id="cleaningRoomsLabel" styleClass="metric-value"/>
+                </VBox>
+                <VBox GridPane.columnIndex="2" GridPane.rowIndex="0" styleClass="metric-card">
+                    <Label text="Maintenance Rooms"/>
+                    <Label fx:id="maintenanceRoomsLabel" styleClass="metric-value"/>
+                </VBox>
+                <VBox GridPane.columnIndex="0" GridPane.rowIndex="1" styleClass="metric-card">
+                    <Label text="Out of Service"/>
+                    <Label fx:id="outOfServiceRoomsLabel" styleClass="metric-value"/>
+                </VBox>
+                <VBox GridPane.columnIndex="1" GridPane.rowIndex="1" styleClass="metric-card">
+                    <Label text="Booked Rooms"/>
+                    <Label fx:id="bookedRoomsLabel" styleClass="metric-value"/>
+                </VBox>
+                <VBox GridPane.columnIndex="2" GridPane.rowIndex="1" styleClass="metric-card">
+                    <Label text="Occupied Rooms"/>
+                    <Label fx:id="occupiedRoomsLabel" styleClass="metric-value"/>
+                </VBox>
+            </GridPane>
+        </VBox>
+
+        <!-- Today's Activity Section -->
+        <VBox spacing="10" styleClass="metric-section">
+            <Label text="Today's Activity" styleClass="section-header"/>
+            <GridPane hgap="20" vgap="10">
+                <VBox GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="metric-card">
+                    <Label text="Today's Bookings"/>
+                    <Label fx:id="todaysBookingsLabel" styleClass="metric-value"/>
+                </VBox>
+                <VBox GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="metric-card">
+                    <Label text="Today's Check-ins"/>
+                    <Label fx:id="todaysCheckInsLabel" styleClass="metric-value"/>
+                </VBox>
+                <VBox GridPane.columnIndex="2" GridPane.rowIndex="0" styleClass="metric-card">
+                    <Label text="Today's Check-outs"/>
+                    <Label fx:id="todaysCheckOutsLabel" styleClass="metric-value"/>
+                </VBox>
+            </GridPane>
+        </VBox>
+
+        <!-- Revenue Section -->
+        <VBox spacing="10" styleClass="metric-section">
+            <Label text="Revenue" styleClass="section-header"/>
+            <GridPane hgap="20" vgap="10">
+                <VBox GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="metric-card">
+                    <Label text="Today's Revenue"/>
+                    <Label fx:id="todaysRevenueLabel" styleClass="metric-value"/>
+                </VBox>
+                <VBox GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="metric-card">
+                    <Label text="Last 30 Days Revenue"/>
+                    <Label fx:id="revenueLast30DaysLabel" styleClass="metric-value"/>
+                </VBox>
+            </GridPane>
+        </VBox>
+
+        <!-- Other Metrics Section -->
+        <VBox spacing="10" styleClass="metric-section">
+            <Label text="Other Metrics" styleClass="section-header"/>
+            <GridPane hgap="20" vgap="10">
+                <VBox GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="metric-card">
+                    <Label text="Total Staff"/>
+                    <Label fx:id="totalStaffLabel" styleClass="metric-value"/>
+                </VBox>
+                <VBox GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="metric-card">
+                    <Label text="Average Feedback Rating (30 Days)"/>
+                    <Label fx:id="avgFeedbackRatingLabel" styleClass="metric-value"/>
+                    <ProgressBar fx:id="feedbackRatingProgress" progress="0.0" styleClass="feedback-progress"/>
+                </VBox>
+            </GridPane>
+        </VBox>
+
+        <!-- Last Updated Label -->
+        <Label fx:id="lastUpdatedLabel" styleClass="last-updated-label"/>
+
+        <!-- Refresh Button -->
+        <Button fx:id="refreshBtn" text="Refresh" onAction="#handleRefreshDashboard" styleClass="refresh-button"/>
+    </VBox>
+</ScrollPane>
