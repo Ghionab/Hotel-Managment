@@ -4,7 +4,6 @@ import com.hotel.MainApp;
 import com.hotel.dao.UserDAO; // Assuming you'll create an implementation like UserDAOImpl
 import com.hotel.dao.impl.UserDAOImpl;
 import com.hotel.model.User;
-import com.hotel.util.DatabaseConnection; // Needed if DAO impl requires connection passed
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -25,12 +24,16 @@ public class LoginController {
 
     private UserDAO userDAO; // Use the interface
 
-    public void initialize() {
-        // Instantiate the DAO implementation
-        // In a real app, use dependency injection (e.g., Spring) or a factory
-        // userDAO = new UserDAOImpl(); // Example: Assumes UserDAOImpl exists
-        statusLabel.setText(""); // Clear status on init
+    public LoginController() {
+        try {
+            userDAO = new UserDAOImpl();
+        } catch (Exception e) {
+            System.err.println("Error initializing LoginController: " + e.getMessage());
+        }
+    }
 
+    public void initialize() {
+        statusLabel.setText(""); // Clear status on init
         System.out.println("LoginController initialized."); // Debug message
     }
 
