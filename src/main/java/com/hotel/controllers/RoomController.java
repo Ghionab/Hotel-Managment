@@ -10,19 +10,22 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 
+import java.math.BigDecimal;
 import java.net.URL;
 import java.sql.SQLException;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
+// Unused imports removed
 
 public class RoomController implements Initializable {
     @FXML private TableView<Room> roomTable;
-    @FXML private TableColumn<Room, Integer> roomNumberColumn;
+    @FXML private TableColumn<Room, String> roomNumberColumn;
     @FXML private TableColumn<Room, String> typeColumn;
     @FXML private TableColumn<Room, String> statusColumn;
     @FXML private TableColumn<Room, Integer> floorColumn;
-    @FXML private TableColumn<Room, Double> priceColumn;
+    @FXML private TableColumn<Room, BigDecimal> priceColumn;
 
     // Detail view controls
     @FXML private Label roomNumberLabel;
@@ -35,9 +38,23 @@ public class RoomController implements Initializable {
     @FXML private TextField searchField;
     @FXML private ComboBox<String> filterTypeComboBox;
     @FXML private ComboBox<String> filterStatusComboBox;
+    
+    // Pagination controls
+    @FXML private Button firstPageButton;
+    @FXML private Button prevPageButton;
+    @FXML private Label pageInfoLabel;
+    @FXML private Label statusLabel;
+    @FXML private Button nextPageButton;
+    @FXML private Button lastPageButton;
+    @FXML private ComboBox<Integer> itemsPerPageCombo;
 
     private RoomDAOImpl roomDAO;
-    private ObservableList<Room> roomList;
+    
+    // Pagination
+    private static final int ITEMS_PER_PAGE = 30;
+    private int currentPage = 1;
+    private int totalItems = 0;
+    private int totalPages = 0;
     private final ObservableList<String> statusOptions = FXCollections.observableArrayList(
         "Available", "Booked", "Cleaning", "Out of Service"
     );
@@ -48,42 +65,191 @@ public class RoomController implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
-        // Initialize the DAO
-        roomDAO = new RoomDAOImpl();
+        try {
+            // Initialize the DAO
+            roomDAO = new RoomDAOImpl();
 
-        // Initialize the status options
-        statusComboBox.setItems(statusOptions);
-        filterStatusComboBox.setItems(statusOptions);
-        filterTypeComboBox.setItems(roomTypes);
+            // Initialize the status options
+            statusComboBox.setItems(statusOptions);
+            filterStatusComboBox.setItems(statusOptions);
+            filterTypeComboBox.setItems(roomTypes);
 
-        // Add listeners for filters
-        searchField.textProperty().addListener((observable, oldValue, newValue) -> applyFilters());
-        filterTypeComboBox.valueProperty().addListener((observable, oldValue, newValue) -> applyFilters());
-        filterStatusComboBox.valueProperty().addListener((observable, oldValue, newValue) -> applyFilters());
+            // Set up table columns
+            roomNumberColumn.setCellValueFactory(new PropertyValueFactory<>("roomNumber"));
+            typeColumn.setCellValueFactory(new PropertyValueFactory<>("type"));
+            statusColumn.setCellValueFactory(new PropertyValueFactory<>("status"));
+            floorColumn.setCellValueFactory(new PropertyValueFactory<>("floor"));
+            priceColumn.setCellValueFactory(new PropertyValueFactory<>("price"));
 
-        // Set up table columns
-        roomNumberColumn.setCellValueFactory(new PropertyValueFactory<>("roomNumber"));
-        typeColumn.setCellValueFactory(new PropertyValueFactory<>("type"));
-        statusColumn.setCellValueFactory(new PropertyValueFactory<>("status"));
-        floorColumn.setCellValueFactory(new PropertyValueFactory<>("floor"));
-        priceColumn.setCellValueFactory(new PropertyValueFactory<>("price"));
+            // Set up items per page combo
+            itemsPerPageCombo.getItems().addAll(10, 25, 50, 100);
+            itemsPerPageCombo.setValue(ITEMS_PER_PAGE);
+            itemsPerPageCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal != null) {
+                    currentPage = 1; // Reset to first page when changing items per page
+                    loadRoomData();
+                }
+            });
 
-        // Add selection listener to table
-        roomTable.getSelectionModel().selectedItemProperty().addListener(
-            (observable, oldValue, newValue) -> showRoomDetails(newValue));
+            // Set up search field listener
+            searchField.textProperty().addListener((obs, oldVal, newVal) -> {
+                currentPage = 1;
+                loadRoomData();
+            });
 
-        // Load initial data
-        loadRoomData();
+            // Set up filter combo box listeners
+            filterTypeComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
+                currentPage = 1;
+                loadRoomData();
+            });
+
+            filterStatusComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
+                currentPage = 1;
+                loadRoomData();
+            });
+
+            // Set up pagination button actions
+            firstPageButton.setOnAction(e -> handleFirstPage());
+            prevPageButton.setOnAction(e -> handlePrevPage());
+            nextPageButton.setOnAction(e -> handleNextPage());
+            lastPageButton.setOnAction(e -> handleLastPage());
+
+            // Add selection listener to table
+            roomTable.getSelectionModel().selectedItemProperty().addListener(
+                (observable, oldValue, newValue) -> showRoomDetails(newValue));
+
+            // Set up pagination controls
+            setupPaginationControls();
+            
+            // Load initial data
+            loadRoomData();
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            showError("Error initializing room controller: " + e.getMessage());
+        }
     }
 
+    private void setupPaginationControls() {
+        // Set up items per page combo box
+        itemsPerPageCombo.getItems().addAll(10, 20, 30, 50, 100);
+        itemsPerPageCombo.setValue(ITEMS_PER_PAGE);
+        
+        // Add listener for items per page changes
+        itemsPerPageCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                currentPage = 1; // Reset to first page when changing items per page
+                loadRoomData();
+            }
+        });
+        
+        // Set up page navigation buttons
+        firstPageButton.setOnAction(e -> handleFirstPage());
+        prevPageButton.setOnAction(e -> handlePrevPage());
+        nextPageButton.setOnAction(e -> handleNextPage());
+        lastPageButton.setOnAction(e -> handleLastPage());
+    }
+    
+    @FXML
+    private void handleFirstPage() {
+        if (currentPage != 1 && totalPages > 0) {
+            currentPage = 1;
+            loadRoomData();
+        }
+    }
+
+    @FXML
+    private void handlePrevPage() {
+        if (currentPage > 1) {
+            currentPage--;
+            loadRoomData();
+        }
+    }
+
+    @FXML
+    private void handleNextPage() {
+        if (currentPage < totalPages) {
+            currentPage++;
+            loadRoomData();
+        }
+    }
+
+    @FXML
+    private void handleLastPage() {
+        if (currentPage != totalPages && totalPages > 0) {
+            currentPage = totalPages;
+            loadRoomData();
+        }
+    }
+
+    private void updatePaginationControls() {
+        // Update pagination buttons state
+        firstPageButton.setDisable(currentPage == 1 || totalPages == 0);
+        prevPageButton.setDisable(currentPage == 1 || totalPages == 0);
+        nextPageButton.setDisable(currentPage == totalPages || totalPages == 0);
+        lastPageButton.setDisable(currentPage == totalPages || totalPages == 0);
+        
+        // Update page info label
+        pageInfoLabel.setText(totalPages > 0 
+            ? String.format("Page %d of %d", currentPage, totalPages)
+            : "No data available");
+    }
+    
+
+
+    private void updateStatusLabel() {
+        int fromItem = Math.min((currentPage - 1) * itemsPerPageCombo.getValue() + 1, totalItems);
+        int toItem = Math.min(currentPage * itemsPerPageCombo.getValue(), totalItems);
+        
+        if (totalItems > 0) {
+            statusLabel.setText(String.format("Showing %d to %d of %d entries", 
+                fromItem, toItem, totalItems));
+        } else {
+            statusLabel.setText("No matching records found");
+        }
+    }
+    
     private void loadRoomData() {
         try {
-            List<Room> rooms = roomDAO.findAll();
-            roomList = FXCollections.observableArrayList(rooms);
-            roomTable.setItems(roomList);
-            clearMessage();
+            // Get all rooms from the database
+            List<Room> allRooms = roomDAO.findAll();
+            
+            // Apply filters
+            List<Room> filteredRooms = filterRooms(allRooms);
+            
+            // Update total items and pages
+            totalItems = filteredRooms.size();
+            totalPages = (int) Math.ceil((double) totalItems / itemsPerPageCombo.getValue());
+            
+            // Ensure current page is within bounds
+            if (currentPage > totalPages && totalPages > 0) {
+                currentPage = totalPages;
+            } else if (currentPage < 1) {
+                currentPage = 1;
+            }
+            
+            // Calculate pagination
+            int fromIndex = (currentPage - 1) * itemsPerPageCombo.getValue();
+            int toIndex = Math.min(fromIndex + itemsPerPageCombo.getValue(), filteredRooms.size());
+            
+            // Get the sublist for the current page
+            List<Room> pagedRooms = filteredRooms.subList(
+                Math.min(fromIndex, filteredRooms.size()),
+                Math.min(toIndex, filteredRooms.size())
+            );
+            
+            // Update the table with paginated data
+            roomTable.setItems(FXCollections.observableArrayList(pagedRooms));
+            
+            // Update pagination controls
+            updatePaginationControls();
+            
+            // Update status label
+            updateStatusLabel();
+            
         } catch (SQLException e) {
-            showError("Error loading rooms: " + e.getMessage());
+            e.printStackTrace();
+            showError("Error loading room data: " + e.getMessage());
         }
     }
 
@@ -141,10 +307,6 @@ public class RoomController implements Initializable {
         messageLabel.setStyle("-fx-text-fill: green;");
     }
 
-    private void clearMessage() {
-        messageLabel.setText("");
-    }
-
     @FXML
     private void handleClearFilters() {
         searchField.clear();
@@ -155,25 +317,38 @@ public class RoomController implements Initializable {
 
     @FXML
     private void handleRefresh() {
+        currentPage = 1; // Reset to first page on refresh
         loadRoomData();
     }
 
-    private void applyFilters() {
+    private List<Room> filterRooms(List<Room> rooms) {
         String searchText = searchField.getText().toLowerCase();
-        String selectedType = filterTypeComboBox.getValue();
-        String selectedStatus = filterStatusComboBox.getValue();
-
-        ObservableList<Room> filteredList = roomList.filtered(room -> {
+        String typeFilter = filterTypeComboBox.getValue();
+        String statusFilter = filterStatusComboBox.getValue();
+        
+        if (searchText.isEmpty() && typeFilter == null && statusFilter == null) {
+            return rooms;
+        }
+        
+        List<Room> filteredList = new ArrayList<>();
+        
+        for (Room room : rooms) {
             boolean matchesSearch = searchText.isEmpty() ||
-                String.valueOf(room.getRoomNumber()).contains(searchText) ||
-                room.getType().toLowerCase().contains(searchText);
+                    room.getRoomNumber().toLowerCase().contains(searchText) ||
+                    room.getType().toLowerCase().contains(searchText) ||
+                    String.valueOf(room.getFloor()).contains(searchText) ||
+                    room.getStatus().toLowerCase().contains(searchText);
 
-            boolean matchesType = selectedType == null || room.getType().equals(selectedType);
-            boolean matchesStatus = selectedStatus == null || room.getStatus().equals(selectedStatus);
+            boolean matchesType = typeFilter == null || typeFilter.equals(room.getType());
+            boolean matchesStatus = statusFilter == null || statusFilter.equals(room.getStatus());
 
-            return matchesSearch && matchesType && matchesStatus;
-        });
-
-        roomTable.setItems(filteredList);
+            if (matchesSearch && matchesType && matchesStatus) {
+                filteredList.add(room);
+            }
+        }
+        
+        return filteredList;
     }
-} 
+    
+
+}
