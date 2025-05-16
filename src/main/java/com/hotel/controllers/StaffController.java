@@ -36,6 +36,8 @@ public class StaffController implements Initializable {
     @FXML private TextField salaryField;
     @FXML private TextArea addressField;
     @FXML private Label messageLabel;
+    @FXML private TextField searchField;
+    @FXML private ComboBox<String> filterPositionComboBox;
 
     private StaffDAOImpl staffDAO;
     private ObservableList<Staff> staffList;
@@ -47,8 +49,13 @@ public class StaffController implements Initializable {
     public void initialize(URL url, ResourceBundle rb) {
         staffDAO = new StaffDAOImpl();
 
-        // Initialize position combo box
+        // Initialize position combo boxes
         positionComboBox.setItems(positions);
+        filterPositionComboBox.setItems(positions);
+
+        // Add filter listeners
+        searchField.textProperty().addListener((observable, oldValue, newValue) -> applyFilters());
+        filterPositionComboBox.valueProperty().addListener((observable, oldValue, newValue) -> applyFilters());
 
         // Initialize table columns
         colUserId.setCellValueFactory(new PropertyValueFactory<>("userId"));
@@ -223,5 +230,37 @@ public class StaffController implements Initializable {
     private void showSuccess(String message) {
         messageLabel.setText(message);
         messageLabel.setStyle("-fx-text-fill: green;");
+    }
+
+    @FXML
+    private void handleClearFilters() {
+        searchField.clear();
+        filterPositionComboBox.setValue(null);
+        loadStaffData();
+    }
+
+    @FXML
+    private void handleRefresh() {
+        loadStaffData();
+    }
+
+    private void applyFilters() {
+        String searchText = searchField.getText().toLowerCase();
+        String selectedPosition = filterPositionComboBox.getValue();
+
+        ObservableList<Staff> filteredList = staffList.filtered(staff -> {
+            boolean matchesSearch = searchText.isEmpty() ||
+                String.valueOf(staff.getUserId()).contains(searchText) ||
+                staff.getFirstName().toLowerCase().contains(searchText) ||
+                staff.getLastName().toLowerCase().contains(searchText) ||
+                staff.getEmail().toLowerCase().contains(searchText) ||
+                staff.getPhoneNumber().toLowerCase().contains(searchText);
+
+            boolean matchesPosition = selectedPosition == null || staff.getPosition().equals(selectedPosition);
+
+            return matchesSearch && matchesPosition;
+        });
+
+        staffTable.setItems(filteredList);
     }
 }
