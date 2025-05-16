@@ -12,14 +12,14 @@ import java.util.Optional;
 public class RoomDAOImpl implements RoomDAO {
 
     @Override
-    public Optional<Room> findById(int roomNumber) throws SQLException {
-        String sql = "SELECT room_id, room_number, type, price, status, floor FROM Rooms WHERE room_number = ?";
+    public Optional<Room> findById(int roomId) throws SQLException {
+        String sql = "SELECT room_id, room_number, type, price, status, floor FROM Rooms WHERE room_id = ?";
         Optional<Room> room = Optional.empty();
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, String.valueOf(roomNumber));
+            pstmt.setInt(1, roomId);
             ResultSet rs = pstmt.executeQuery();
 
             if (rs.next()) {
@@ -45,9 +45,11 @@ public class RoomDAOImpl implements RoomDAO {
         }
         return rooms;
     }
+    
+
 
     @Override
-    public boolean updateRoomStatus(int roomNumber, String newStatus) throws SQLException {
+    public boolean updateRoomStatus(String roomNumber, String newStatus) throws SQLException {
         String sql = "UPDATE Rooms SET status = ? WHERE room_number = ?";
         int affectedRows = 0;
 
@@ -55,7 +57,7 @@ public class RoomDAOImpl implements RoomDAO {
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, newStatus);
-            pstmt.setInt(2, roomNumber);
+            pstmt.setString(2, roomNumber);
 
             affectedRows = pstmt.executeUpdate();
         }
@@ -64,17 +66,18 @@ public class RoomDAOImpl implements RoomDAO {
 
     @Override
     public boolean addRoom(Room room) throws SQLException {
-        String sql = "INSERT INTO Rooms (room_number, type, price, status, floor) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO Rooms (room_number, type, price, status, floor, description) VALUES (?, ?, ?, ?, ?, ?)";
         int affectedRows = 0;
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, String.valueOf(room.getRoomNumber()));
+            pstmt.setString(1, room.getRoomNumber());
             pstmt.setString(2, room.getType());
-            pstmt.setDouble(3, room.getPrice());
+            pstmt.setBigDecimal(3, room.getPrice());
             pstmt.setString(4, room.getStatus());
             pstmt.setInt(5, room.getFloor());
+            pstmt.setString(6, room.getDescription());
 
             affectedRows = pstmt.executeUpdate();
         }
@@ -83,17 +86,18 @@ public class RoomDAOImpl implements RoomDAO {
 
     @Override
     public boolean updateRoom(Room room) throws SQLException {
-        String sql = "UPDATE Rooms SET type = ?, price = ?, status = ?, floor = ? WHERE room_number = ?";
+        String sql = "UPDATE Rooms SET type = ?, price = ?, status = ?, floor = ?, description = ? WHERE room_id = ?";
         int affectedRows = 0;
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, room.getType());
-            pstmt.setDouble(2, room.getPrice());
+            pstmt.setBigDecimal(2, room.getPrice());
             pstmt.setString(3, room.getStatus());
             pstmt.setInt(4, room.getFloor());
-            pstmt.setString(5, String.valueOf(room.getRoomNumber()));
+            pstmt.setString(5, room.getDescription());
+            pstmt.setInt(6, room.getRoomId());
 
             affectedRows = pstmt.executeUpdate();
         }
@@ -101,14 +105,14 @@ public class RoomDAOImpl implements RoomDAO {
     }
 
     @Override
-    public boolean deleteRoom(int roomNumber) throws SQLException {
-        String sql = "DELETE FROM Rooms WHERE room_number = ?";
+    public boolean deleteRoom(int roomId) throws SQLException {
+        String sql = "DELETE FROM Rooms WHERE room_id = ?";
         int affectedRows = 0;
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, String.valueOf(roomNumber));
+            pstmt.setInt(1, roomId);
 
             affectedRows = pstmt.executeUpdate();
         }
@@ -267,11 +271,12 @@ public class RoomDAOImpl implements RoomDAO {
 
     private Room mapRowToRoom(ResultSet rs) throws SQLException {
         Room room = new Room();
-        room.setRoomNumber(Integer.parseInt(rs.getString("room_number")));
+        room.setRoomId(rs.getInt("room_id"));
+        room.setRoomNumber(rs.getString("room_number"));
         room.setType(rs.getString("type"));
-        room.setPrice(rs.getDouble("price"));
+        room.setPrice(rs.getBigDecimal("price"));
         room.setStatus(rs.getString("status"));
         room.setFloor(rs.getInt("floor"));
-        return room;
+            return room;
     }
 } 
