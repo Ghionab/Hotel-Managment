@@ -19,6 +19,7 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public class BookingController {
 
@@ -27,13 +28,18 @@ public class BookingController {
     @FXML private ComboBox<Customer> customerComboBox;
     @FXML private DatePicker checkInDatePicker;
     @FXML private DatePicker checkOutDatePicker;
+    @FXML private Spinner<Integer> numberOfAdultsSpinner;
+    @FXML private Spinner<Integer> numberOfKidsSpinner;
     @FXML private Label statusMessageLabel;
     @FXML private TableView<Booking> bookingsTableView;
     @FXML private TableColumn<Booking, Integer> colBookingId;
-    @FXML private TableColumn<Booking, Integer> colRoomNumber;
+    @FXML private TableColumn<Booking, Integer> colRoomId;
     @FXML private TableColumn<Booking, Integer> colCustomerId;
     @FXML private TableColumn<Booking, LocalDate> colCheckIn;
     @FXML private TableColumn<Booking, LocalDate> colCheckOut;
+    @FXML private TextField searchField;
+    @FXML private DatePicker filterStartDate;
+    @FXML private DatePicker filterEndDate;
 
     private BookingDAO bookingDAO;
     private RoomDAO roomDAO;
@@ -55,7 +61,7 @@ public class BookingController {
 
         // Setup TableView columns
         colBookingId.setCellValueFactory(new PropertyValueFactory<>("bookingId"));
-        colRoomNumber.setCellValueFactory(new PropertyValueFactory<>("roomNumber"));
+        colRoomId.setCellValueFactory(new PropertyValueFactory<>("roomId"));
         colCustomerId.setCellValueFactory(new PropertyValueFactory<>("customerId"));
         colCheckIn.setCellValueFactory(new PropertyValueFactory<>("checkInDate"));
         colCheckOut.setCellValueFactory(new PropertyValueFactory<>("checkOutDate"));
@@ -65,6 +71,15 @@ public class BookingController {
         // Add listener to TableView selection
         bookingsTableView.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldSelection, newSelection) -> showBookingDetails(newSelection));
+
+        // Add filter listeners
+        searchField.textProperty().addListener((observable, oldValue, newValue) -> applyFilters());
+        filterStartDate.valueProperty().addListener((observable, oldValue, newValue) -> applyFilters());
+        filterEndDate.valueProperty().addListener((observable, oldValue, newValue) -> applyFilters());
+
+        // Add listeners to date pickers to refresh available rooms
+        checkInDatePicker.valueProperty().addListener((observable, oldValue, newValue) -> loadAvailableRooms());
+        checkOutDatePicker.valueProperty().addListener((observable, oldValue, newValue) -> loadAvailableRooms());
 
         // Setup ComboBoxes
         roomNumberComboBox.setItems(availableRoomList);
@@ -103,14 +118,24 @@ public class BookingController {
     private void loadAvailableRooms() {
         availableRoomList.clear();
         try {
-            if (roomDAO == null) {
-                setStatusMessage("Error: Room service not available.", false);
+            if (bookingDAO == null) {
+                setStatusMessage("Error: Booking service not available.", false);
                 return;
             }
-            List<Room> rooms = roomDAO.findAvailableRooms();
-            availableRoomList.setAll(rooms);
+            LocalDate checkIn = checkInDatePicker.getValue();
+            LocalDate checkOut = checkOutDatePicker.getValue();
+            
+            // If dates aren't selected, use current date and next day
+            if (checkIn == null) checkIn = LocalDate.now();
+            if (checkOut == null) checkOut = checkIn.plusDays(1);
+            
+            List<Room> rooms = bookingDAO.getAllAvailableRooms(checkIn, checkOut);
+            availableRoomList.addAll(rooms);
+            if (rooms.isEmpty()) {
+                setStatusMessage("No available rooms found for selected dates.", false);
+            }
         } catch (SQLException e) {
-            setStatusMessage("Error loading rooms: " + e.getMessage(), false);
+            setStatusMessage("Error loading available rooms: " + e.getMessage(), false);
             e.printStackTrace();
         }
     }
@@ -118,12 +143,15 @@ public class BookingController {
     private void loadCustomers() {
         customerList.clear();
         try {
-            if (customerDAO == null) {
-                setStatusMessage("Error: Customer service not available.", false);
+            if (bookingDAO == null) {
+                setStatusMessage("Error: Booking service not available.", false);
                 return;
             }
-            List<Customer> customers = customerDAO.findAll();
-            customerList.setAll(customers);
+            List<Customer> customers = bookingDAO.getAllCustomers();
+            customerList.addAll(customers);
+            if (customers.isEmpty()) {
+                setStatusMessage("No customers found.", false);
+            }
         } catch (SQLException e) {
             setStatusMessage("Error loading customers: " + e.getMessage(), false);
             e.printStackTrace();
@@ -133,26 +161,32 @@ public class BookingController {
     private void showBookingDetails(Booking booking) {
         if (booking != null) {
             bookingIdField.setText(String.valueOf(booking.getBookingId()));
-            checkInDatePicker.setValue(booking.getCheckInDate());
-            checkOutDatePicker.setValue(booking.getCheckOutDate());
-
-            // Select room in ComboBox (find matching room object)
-            Room selectedRoom = availableRoomList.stream()
-                                    .filter(r -> r.getRoomNumber() == booking.getRoomNumber())
-                                    .findFirst().orElse(null);
-            // If the booked room wasn't in the 'available' list initially, add it temporarily or handle differently
-            if(selectedRoom == null) {
-                // Fetch the specific room? Or add a placeholder? Handle this case.
-                 System.out.println("Booked room "+ booking.getRoomNumber() +" not in available list. Add handling.");
+            try {
+                // Find and select the room
+                List<Booking> roomBookings = bookingDAO.findByRoomId(booking.getRoomId());
+                if (!roomBookings.isEmpty()) {
+                    Room room = roomDAO.findById(booking.getRoomId()).orElse(null);
+                    if (room != null) {
+                        roomNumberComboBox.setValue(room);
+                    }
+                }
+                
+                // Find and select the customer
+                List<Booking> customerBookings = bookingDAO.findByCustomerId(booking.getCustomerId());
+                if (!customerBookings.isEmpty()) {
+                    Customer customer = customerDAO.findById(booking.getCustomerId()).orElse(null);
+                    if (customer != null) {
+                        customerComboBox.setValue(customer);
+                    }
+                }
+                
+                checkInDatePicker.setValue(booking.getCheckInDate());
+                checkOutDatePicker.setValue(booking.getCheckOutDate());
+                numberOfAdultsSpinner.getValueFactory().setValue(booking.getNumberOfAdults());
+                numberOfKidsSpinner.getValueFactory().setValue(booking.getNumberOfKids());
+            } catch (SQLException e) {
+                setStatusMessage("Error loading booking details: " + e.getMessage(), false);
             }
-            roomNumberComboBox.setValue(selectedRoom);
-
-            // Select customer in ComboBox
-            Customer selectedCustomer = customerList.stream()
-                                          .filter(c -> c.getCustomerId() == booking.getCustomerId())
-                                          .findFirst().orElse(null);
-            customerComboBox.setValue(selectedCustomer);
-
         } else {
             handleClearFields();
         }
@@ -160,103 +194,94 @@ public class BookingController {
 
     @FXML
     private void handleAddBooking() {
-        if (!validateInput()) return;
-
-        Room selectedRoom = roomNumberComboBox.getValue();
-        Customer selectedCustomer = customerComboBox.getValue();
-        LocalDate checkIn = checkInDatePicker.getValue();
-        LocalDate checkOut = checkOutDatePicker.getValue();
-
-        Booking newBooking = new Booking(0, selectedRoom.getRoomNumber(), selectedCustomer.getCustomerId(), checkIn, checkOut);
-        
-        if (bookingDAO == null) {
-            setStatusMessage("Error: Booking service not available.", false);
+        if (!validateInput()) {
             return;
         }
-        
+
         try {
-            // Check if room is available for the dates before adding
-            List<Booking> existingBookings = bookingDAO.findByRoomNumber(selectedRoom.getRoomNumber());
-            boolean hasConflict = existingBookings.stream().anyMatch(b -> 
-                (checkIn.isBefore(b.getCheckOutDate()) || checkIn.isEqual(b.getCheckOutDate())) &&
-                (checkOut.isAfter(b.getCheckInDate()) || checkOut.isEqual(b.getCheckInDate())));
-            
-            if (hasConflict) {
-                setStatusMessage("Room is not available for selected dates.", false);
-                return;
-            }
-            
-            boolean success = bookingDAO.addBooking(newBooking);
-            if (success) {
-                // Update Room status to 'occupied'
-                roomDAO.updateRoomStatus(selectedRoom.getRoomNumber(), "occupied");
-                loadInitialData(); // Reload lists
+            Booking newBooking = new Booking();
+            newBooking.setRoomId(roomNumberComboBox.getValue().getRoomId());
+            newBooking.setCustomerId(customerComboBox.getValue().getCustomerId());
+            newBooking.setCheckInDate(checkInDatePicker.getValue());
+            newBooking.setCheckOutDate(checkOutDatePicker.getValue());
+            newBooking.setBookingStatus("Confirmed");
+            newBooking.setNumberOfAdults(numberOfAdultsSpinner.getValue());
+            newBooking.setNumberOfKids(numberOfKidsSpinner.getValue());
+
+            if (bookingDAO.addBooking(newBooking)) {
+                setStatusMessage("Booking added successfully.", true);
+                loadBookings();
                 handleClearFields();
-                setStatusMessage("Booking added successfully!", true);
             } else {
                 setStatusMessage("Failed to add booking.", false);
             }
         } catch (SQLException e) {
-            setStatusMessage("Database error adding booking: " + e.getMessage(), false);
+            setStatusMessage("Error adding booking: " + e.getMessage(), false);
             e.printStackTrace();
         }
     }
 
     @FXML
     private void handleUpdateBooking() {
-        Booking selectedBooking = bookingsTableView.getSelectionModel().getSelectedItem();
-        if (selectedBooking == null) {
-            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a booking to update.");
+        if (!validateInput()) {
             return;
         }
-        if (!validateInput()) return;
 
-        Room selectedRoom = roomNumberComboBox.getValue();
-        Customer selectedCustomer = customerComboBox.getValue();
-        LocalDate checkIn = checkInDatePicker.getValue();
-        LocalDate checkOut = checkOutDatePicker.getValue();
-
-        Booking updatedBooking = new Booking(selectedBooking.getBookingId(), selectedRoom.getRoomNumber(), 
-            selectedCustomer.getCustomerId(), checkIn, checkOut);
-
-        if (bookingDAO == null) {
-            setStatusMessage("Error: Booking service not available.", false);
+        String bookingIdText = bookingIdField.getText();
+        if (bookingIdText.isEmpty()) {
+            showAlert(Alert.AlertType.ERROR, "Error", "Please select a booking to update.");
             return;
         }
-        
+
         try {
-            // Check for conflicts only if room or dates changed
-            if (selectedBooking.getRoomNumber() != selectedRoom.getRoomNumber() ||
-                !selectedBooking.getCheckInDate().equals(checkIn) ||
-                !selectedBooking.getCheckOutDate().equals(checkOut)) {
-                
-                List<Booking> existingBookings = bookingDAO.findByRoomNumber(selectedRoom.getRoomNumber());
-                boolean hasConflict = existingBookings.stream()
-                    .filter(b -> b.getBookingId() != selectedBooking.getBookingId())
-                    .anyMatch(b -> 
-                        (checkIn.isBefore(b.getCheckOutDate()) || checkIn.isEqual(b.getCheckOutDate())) &&
-                        (checkOut.isAfter(b.getCheckInDate()) || checkOut.isEqual(b.getCheckInDate())));
-                
-                if (hasConflict) {
-                    setStatusMessage("Room is not available for selected dates.", false);
+            int bookingId = Integer.parseInt(bookingIdText);
+            Optional<Booking> existingBooking = bookingDAO.findById(bookingId);
+
+            if (existingBooking.isPresent()) {
+                // Check if the room is available for the new dates
+                List<Booking> roomBookings = bookingDAO.findByRoomId(roomNumberComboBox.getValue().getRoomId());
+                boolean isRoomAvailable = true;
+
+                for (Booking booking : roomBookings) {
+                    if (booking.getBookingId() != bookingId) { // Skip current booking
+                        LocalDate newCheckIn = checkInDatePicker.getValue();
+                        LocalDate newCheckOut = checkOutDatePicker.getValue();
+                        LocalDate existingCheckIn = booking.getCheckInDate();
+                        LocalDate existingCheckOut = booking.getCheckOutDate();
+
+                        if ((newCheckIn.isBefore(existingCheckOut) || newCheckIn.isEqual(existingCheckOut)) &&
+                            (newCheckOut.isAfter(existingCheckIn) || newCheckOut.isEqual(existingCheckIn))) {
+                            isRoomAvailable = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (!isRoomAvailable) {
+                    showAlert(Alert.AlertType.ERROR, "Error", "Room is not available for the selected dates.");
                     return;
                 }
-            }
-            
-            boolean success = bookingDAO.updateBooking(updatedBooking);
-            if (success) {
-                // Update room statuses if room changed
-                if (selectedBooking.getRoomNumber() != selectedRoom.getRoomNumber()) {
-                    roomDAO.updateRoomStatus(selectedBooking.getRoomNumber(), "available");
-                    roomDAO.updateRoomStatus(selectedRoom.getRoomNumber(), "occupied");
+
+                Booking updatedBooking = existingBooking.get();
+                updatedBooking.setRoomId(roomNumberComboBox.getValue().getRoomId());
+                updatedBooking.setCustomerId(customerComboBox.getValue().getCustomerId());
+                updatedBooking.setCheckInDate(checkInDatePicker.getValue());
+                updatedBooking.setCheckOutDate(checkOutDatePicker.getValue());
+
+                if (bookingDAO.updateBooking(updatedBooking)) {
+                    setStatusMessage("Booking updated successfully.", true);
+                    loadBookings();
+                    handleClearFields();
+                } else {
+                    setStatusMessage("Failed to update booking.", false);
                 }
-                loadInitialData();
-                setStatusMessage("Booking updated successfully!", true);
             } else {
-                setStatusMessage("Failed to update booking.", false);
+                setStatusMessage("Booking not found.", false);
             }
+        } catch (NumberFormatException e) {
+            showAlert(Alert.AlertType.ERROR, "Error", "Invalid booking ID format.");
         } catch (SQLException e) {
-            setStatusMessage("Database error updating booking: " + e.getMessage(), false);
+            setStatusMessage("Error updating booking: " + e.getMessage(), false);
             e.printStackTrace();
         }
     }
@@ -276,22 +301,11 @@ public class BookingController {
 
         confirmDialog.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
-                if (bookingDAO == null) {
-                    setStatusMessage("Error: Booking service not available.", false);
-                    return;
-                }
-                
                 try {
-                    boolean success = bookingDAO.deleteBooking(selectedBooking.getBookingId());
-                    if (success) {
-                        // Update Room status to 'available' if no other active bookings exist
-                        List<Booking> roomBookings = bookingDAO.findByRoomNumber(selectedBooking.getRoomNumber());
-                        if (roomBookings.isEmpty()) {
-                            roomDAO.updateRoomStatus(selectedBooking.getRoomNumber(), "available");
-                        }
-                        loadInitialData();
+                    if (bookingDAO.deleteBooking(selectedBooking.getBookingId())) {
+                        setStatusMessage("Booking deleted successfully.", true);
+                        loadBookings();
                         handleClearFields();
-                        setStatusMessage("Booking deleted successfully!", true);
                     } else {
                         setStatusMessage("Failed to delete booking.", false);
                     }
@@ -311,10 +325,12 @@ public class BookingController {
         customerComboBox.getSelectionModel().clearSelection();
         checkInDatePicker.setValue(null);
         checkOutDatePicker.setValue(null);
+        numberOfAdultsSpinner.getValueFactory().setValue(1);
+        numberOfKidsSpinner.getValueFactory().setValue(0);
         statusMessageLabel.setText("");
     }
 
-     private boolean validateInput() {
+    private boolean validateInput() {
         String errorMessage = "";
         if (roomNumberComboBox.getValue() == null) {
             errorMessage += "Room must be selected.\n";
@@ -342,16 +358,16 @@ public class BookingController {
         }
     }
 
-     private void setStatusMessage(String message, boolean success) {
+    private void setStatusMessage(String message, boolean success) {
          statusMessageLabel.setText(message);
          statusMessageLabel.setStyle(success ? "-fx-text-fill: green;" : "-fx-text-fill: red;");
      }
 
-    private void showAlert(Alert.AlertType alertType, String title, String message) {
+    private void showAlert(Alert.AlertType alertType, String title, String content) {
         Alert alert = new Alert(alertType);
         alert.setTitle(title);
         alert.setHeaderText(null);
-        alert.setContentText(message);
+        alert.setContentText(content);
         alert.showAndWait();
     }
 
@@ -359,7 +375,7 @@ public class BookingController {
     private static class RoomStringConverter extends javafx.util.StringConverter<Room> {
         @Override
         public String toString(Room room) {
-            return (room == null) ? null : "Room " + room.getRoomNumber() + " (" + room.getType() + ")";
+            return (room == null) ? null : "Room " + room.getRoomNumber() + " (" + room.getType() + ", " + room.getDescription() + ")";
         }
 
         @Override
@@ -380,5 +396,45 @@ public class BookingController {
              // Not needed if ComboBox is not editable
             return null;
         }
+    }
+
+    @FXML
+    private void handleClearFilters() {
+        searchField.clear();
+        filterStartDate.setValue(null);
+        filterEndDate.setValue(null);
+        loadBookings();
+    }
+
+    @FXML
+    private void handleRefresh() {
+        loadInitialData();
+    }
+
+    private void applyFilters() {
+        String searchText = searchField.getText().toLowerCase();
+        LocalDate startDate = filterStartDate.getValue();
+        LocalDate endDate = filterEndDate.getValue();
+
+        ObservableList<Booking> filteredList = bookingList.filtered(booking -> {
+            boolean matchesSearch = searchText.isEmpty() ||
+                String.valueOf(booking.getBookingId()).contains(searchText) ||
+                String.valueOf(booking.getRoomId()).contains(searchText) ||
+                String.valueOf(booking.getCustomerId()).contains(searchText);
+
+            boolean matchesDateRange = true;
+            if (startDate != null && endDate != null) {
+                matchesDateRange = !booking.getCheckOutDate().isBefore(startDate) &&
+                    !booking.getCheckInDate().isAfter(endDate);
+            } else if (startDate != null) {
+                matchesDateRange = !booking.getCheckOutDate().isBefore(startDate);
+            } else if (endDate != null) {
+                matchesDateRange = !booking.getCheckInDate().isAfter(endDate);
+            }
+
+            return matchesSearch && matchesDateRange;
+        });
+
+        bookingsTableView.setItems(filteredList);
     }
 } 
