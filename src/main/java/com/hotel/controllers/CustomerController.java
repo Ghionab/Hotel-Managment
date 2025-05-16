@@ -33,6 +33,9 @@ public class CustomerController {
     @FXML private TableColumn<Customer, String> colPhone;
     @FXML private TableColumn<Customer, Integer> colAdults;
     @FXML private TableColumn<Customer, Integer> colKids;
+    @FXML private TextField searchField;
+    @FXML private ComboBox<String> filterAdultsComboBox;
+    @FXML private ComboBox<String> filterKidsComboBox;
 
     private CustomerDAO customerDAO;
     private ObservableList<Customer> customerList = FXCollections.observableArrayList();
@@ -61,6 +64,23 @@ public class CustomerController {
         // Add listener to TableView selection
         customersTableView.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldSelection, newSelection) -> showCustomerDetails(newSelection));
+
+        // Setup filter ComboBoxes
+        ObservableList<String> adultsOptions = FXCollections.observableArrayList(
+            "Any", "1", "2", "3", "4+"
+        );
+        ObservableList<String> kidsOptions = FXCollections.observableArrayList(
+            "Any", "0", "1", "2", "3+"
+        );
+        filterAdultsComboBox.setItems(adultsOptions);
+        filterKidsComboBox.setItems(kidsOptions);
+        filterAdultsComboBox.setValue("Any");
+        filterKidsComboBox.setValue("Any");
+
+        // Add filter listeners
+        searchField.textProperty().addListener((observable, oldValue, newValue) -> applyFilters());
+        filterAdultsComboBox.valueProperty().addListener((observable, oldValue, newValue) -> applyFilters());
+        filterKidsComboBox.valueProperty().addListener((observable, oldValue, newValue) -> applyFilters());
 
         // Load initial data
         loadCustomers();
@@ -271,5 +291,45 @@ public class CustomerController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    @FXML
+    private void handleClearFilters() {
+        searchField.clear();
+        filterAdultsComboBox.setValue("Any");
+        filterKidsComboBox.setValue("Any");
+        loadCustomers();
+    }
+
+    @FXML
+    private void handleRefresh() {
+        loadCustomers();
+    }
+
+    private void applyFilters() {
+        String searchText = searchField.getText().toLowerCase();
+        String adultsFilter = filterAdultsComboBox.getValue();
+        String kidsFilter = filterKidsComboBox.getValue();
+
+        ObservableList<Customer> filteredList = customerList.filtered(customer -> {
+            boolean matchesSearch = searchText.isEmpty() ||
+                String.valueOf(customer.getCustomerId()).contains(searchText) ||
+                customer.getFirstName().toLowerCase().contains(searchText) ||
+                customer.getLastName().toLowerCase().contains(searchText) ||
+                customer.getEmail().toLowerCase().contains(searchText) ||
+                customer.getPhoneNumber().toLowerCase().contains(searchText);
+
+            boolean matchesAdults = adultsFilter.equals("Any") ||
+                (adultsFilter.equals("4+") && customer.getNumberOfAdults() >= 4) ||
+                String.valueOf(customer.getNumberOfAdults()).equals(adultsFilter);
+
+            boolean matchesKids = kidsFilter.equals("Any") ||
+                (kidsFilter.equals("3+") && customer.getNumberOfKids() >= 3) ||
+                String.valueOf(customer.getNumberOfKids()).equals(kidsFilter);
+
+            return matchesSearch && matchesAdults && matchesKids;
+        });
+
+        customersTableView.setItems(filteredList);
     }
 } 
