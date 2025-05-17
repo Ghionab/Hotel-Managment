@@ -1,18 +1,31 @@
 package com.hotel.dao;
 
 import com.hotel.model.Invoice;
+import com.hotel.model.BookingService;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Optional;
 
 public interface InvoiceDAO {
-    List<Invoice> findAll() throws SQLException;
-    Optional<Invoice> findById(int invoiceId) throws SQLException;
-    List<Invoice> findByCustomerId(int customerId) throws SQLException;
-    List<Invoice> findByBookingId(int bookingId) throws SQLException;
-    boolean addInvoice(Invoice invoice) throws SQLException;
-    boolean updateInvoice(Invoice invoice) throws SQLException;
-    boolean deleteInvoice(int invoiceId) throws SQLException;
-    boolean updateInvoiceStatus(int invoiceId, String status) throws SQLException;
-    boolean recordPayment(int invoiceId, double amount) throws SQLException;
+    /**
+     * Retrieves all invoices with customer and room details
+     * @return List of Invoice objects with populated customer and room information
+     * @throws SQLException if a database access error occurs
+     */
+    List<Invoice> getAllInvoices() throws SQLException;
+    
+    /**
+     * Retrieves a specific invoice by ID with all details
+     * @param invoiceId the ID of the invoice to retrieve
+     * @return Invoice object with all details including customer and room information
+     * @throws SQLException if a database access error occurs
+     */
+    Invoice getInvoiceDetails(int invoiceId) throws SQLException;
+    
+    /**
+     * Retrieves all booking services for a specific booking
+     * @param bookingId the ID of the booking
+     * @return List of BookingService objects with service details
+     * @throws SQLException if a database access error occurs
+     */
+    List<BookingService> getBookingServicesForBooking(int bookingId) throws SQLException;
 }
