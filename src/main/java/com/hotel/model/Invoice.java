@@ -1,105 +1,190 @@
 package com.hotel.model;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.Timestamp;
 
 public class Invoice {
     private int invoiceId;
     private int bookingId;
-    private int customerId;
-    private LocalDate issueDate;
-    private LocalDate dueDate;
-    private double totalAmount;
-    private double paidAmount;
-    private double balanceDue;
+    private Date issueDate;
+    private Date dueDate;
+    private BigDecimal roomCost;
+    private BigDecimal serviceCost;
+    private BigDecimal totalAmount;
+    private BigDecimal paidAmount;
     private String invoiceStatus;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-
-    // Default constructor
-    public Invoice() {}
-
-    // Constructor with required fields
-    public Invoice(int bookingId, int customerId, LocalDate issueDate, double totalAmount) {
-        this.bookingId = bookingId;
-        this.customerId = customerId;
-        this.issueDate = issueDate;
-        this.totalAmount = totalAmount;
-        this.paidAmount = 0.0;
-        this.balanceDue = totalAmount;
+    private Timestamp createdAt;
+    private Timestamp updatedAt;
+    
+    // Additional properties for display and PDF generation
+    private String customerName;
+    private String roomNumber;
+    private Date checkInDate;
+    private Date checkOutDate;
+    
+    // Constructors
+    public Invoice() {
+        this.roomCost = BigDecimal.ZERO;
+        this.serviceCost = BigDecimal.ZERO;
+        this.totalAmount = BigDecimal.ZERO;
+        this.paidAmount = BigDecimal.ZERO;
         this.invoiceStatus = "Pending";
     }
-
-    // Full constructor
-    public Invoice(int invoiceId, int bookingId, int customerId, LocalDate issueDate, 
-                  LocalDate dueDate, double totalAmount, double paidAmount, 
-                  double balanceDue, String invoiceStatus, LocalDateTime createdAt, 
-                  LocalDateTime updatedAt) {
+    
+    public Invoice(int invoiceId, int bookingId, Date issueDate, Date dueDate, 
+                  BigDecimal roomCost, BigDecimal serviceCost, BigDecimal totalAmount, 
+                  BigDecimal paidAmount, String invoiceStatus) {
         this.invoiceId = invoiceId;
         this.bookingId = bookingId;
-        this.customerId = customerId;
         this.issueDate = issueDate;
         this.dueDate = dueDate;
+        this.roomCost = roomCost;
+        this.serviceCost = serviceCost;
         this.totalAmount = totalAmount;
         this.paidAmount = paidAmount;
-        this.balanceDue = balanceDue;
         this.invoiceStatus = invoiceStatus;
+    }
+    
+    // Getters and Setters
+    public int getInvoiceId() {
+        return invoiceId;
+    }
+    
+    public void setInvoiceId(int invoiceId) {
+        this.invoiceId = invoiceId;
+    }
+    
+    public int getBookingId() {
+        return bookingId;
+    }
+    
+    public void setBookingId(int bookingId) {
+        this.bookingId = bookingId;
+    }
+    
+    public Date getIssueDate() {
+        return issueDate;
+    }
+    
+    public void setIssueDate(Date issueDate) {
+        this.issueDate = issueDate;
+    }
+    
+    public Date getDueDate() {
+        return dueDate;
+    }
+    
+    public void setDueDate(Date dueDate) {
+        this.dueDate = dueDate;
+    }
+    
+    public BigDecimal getRoomCost() {
+        return roomCost;
+    }
+    
+    public void setRoomCost(BigDecimal roomCost) {
+        this.roomCost = roomCost;
+    }
+    
+    public BigDecimal getServiceCost() {
+        return serviceCost;
+    }
+    
+    public void setServiceCost(BigDecimal serviceCost) {
+        this.serviceCost = serviceCost;
+    }
+    
+    public BigDecimal getTotalAmount() {
+        return totalAmount;
+    }
+    
+    public void setTotalAmount(BigDecimal totalAmount) {
+        this.totalAmount = totalAmount;
+    }
+    
+    public BigDecimal getPaidAmount() {
+        return paidAmount;
+    }
+    
+    public void setPaidAmount(BigDecimal paidAmount) {
+        this.paidAmount = paidAmount;
+    }
+    
+    public String getInvoiceStatus() {
+        return invoiceStatus;
+    }
+    
+    public void setInvoiceStatus(String invoiceStatus) {
+        this.invoiceStatus = invoiceStatus;
+    }
+    
+    public Timestamp getCreatedAt() {
+        return createdAt;
+    }
+    
+    public void setCreatedAt(Timestamp createdAt) {
         this.createdAt = createdAt;
+    }
+    
+    public Timestamp getUpdatedAt() {
+        return updatedAt;
+    }
+    
+    public void setUpdatedAt(Timestamp updatedAt) {
         this.updatedAt = updatedAt;
     }
-
-    // Getters and Setters
-    public int getInvoiceId() { return invoiceId; }
-    public void setInvoiceId(int invoiceId) { this.invoiceId = invoiceId; }
-
-    public int getBookingId() { return bookingId; }
-    public void setBookingId(int bookingId) { this.bookingId = bookingId; }
-
-    public int getCustomerId() { return customerId; }
-    public void setCustomerId(int customerId) { this.customerId = customerId; }
-
-    public LocalDate getIssueDate() { return issueDate; }
-    public void setIssueDate(LocalDate issueDate) { this.issueDate = issueDate; }
-
-    public LocalDate getDueDate() { return dueDate; }
-    public void setDueDate(LocalDate dueDate) { this.dueDate = dueDate; }
-
-    public double getTotalAmount() { return totalAmount; }
-    public void setTotalAmount(double totalAmount) { 
-        this.totalAmount = totalAmount;
-        updateBalanceDue();
+    
+    // Additional getters and setters for display and PDF generation
+    public String getCustomerName() {
+        return customerName;
     }
-
-    public double getPaidAmount() { return paidAmount; }
-    public void setPaidAmount(double paidAmount) { 
-        this.paidAmount = paidAmount;
-        updateBalanceDue();
+    
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
     }
-
-    public double getBalanceDue() { return balanceDue; }
-    public void setBalanceDue(double balanceDue) { this.balanceDue = balanceDue; }
-
-    public String getInvoiceStatus() { return invoiceStatus; }
-    public void setInvoiceStatus(String invoiceStatus) { this.invoiceStatus = invoiceStatus; }
-
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
-
-    // Helper method to update balance due
-    private void updateBalanceDue() {
-        this.balanceDue = this.totalAmount - this.paidAmount;
-        // Update status if fully paid
-        if (this.balanceDue <= 0) {
-            this.invoiceStatus = "Paid";
-        }
+    
+    public String getRoomNumber() {
+        return roomNumber;
     }
-
+    
+    public void setRoomNumber(String roomNumber) {
+        this.roomNumber = roomNumber;
+    }
+    
+    public Date getCheckInDate() {
+        return checkInDate;
+    }
+    
+    public void setCheckInDate(Date checkInDate) {
+        this.checkInDate = checkInDate;
+    }
+    
+    public Date getCheckOutDate() {
+        return checkOutDate;
+    }
+    
+    public void setCheckOutDate(Date checkOutDate) {
+        this.checkOutDate = checkOutDate;
+    }
+    
+    // Utility method to calculate balance due
+    public BigDecimal getBalanceDue() {
+        return totalAmount.subtract(paidAmount);
+    }
+    
     @Override
     public String toString() {
-        return String.format("Invoice #%d - Total: $%.2f, Status: %s", 
-                           invoiceId, totalAmount, invoiceStatus);
+        return "Invoice{" +
+                "invoiceId=" + invoiceId +
+                ", bookingId=" + bookingId +
+                ", customerName='" + customerName + '\'' +
+                ", roomNumber='" + roomNumber + '\'' +
+                ", issueDate=" + issueDate +
+                ", dueDate=" + dueDate +
+                ", totalAmount=" + totalAmount +
+                ", paidAmount=" + paidAmount +
+                ", invoiceStatus='" + invoiceStatus + '\'' +
+                '}';
     }
 }
