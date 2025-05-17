@@ -6,15 +6,15 @@ import java.util.List;
 import java.util.Optional;
 
 public interface RoomDAO {
-    Optional<Room> findById(int roomNumber) throws SQLException;
+    Optional<Room> findById(int roomId) throws SQLException;
     List<Room> findAll() throws SQLException;
     boolean addRoom(Room room) throws SQLException;
     boolean updateRoom(Room room) throws SQLException;
-    boolean deleteRoom(int roomNumber) throws SQLException;
-    List<Room> findAvailableRooms() throws SQLException; // Example specific query
+    boolean deleteRoom(int roomId) throws SQLException;
+    List<Room> findAvailableRooms() throws SQLException;
     
     // Dashboard methods
-    int getTotalRoomCount() throws SQLException;
+
     int getAvailableRoomCount() throws SQLException;
     int getOccupiedRoomCount() throws SQLException;
     int getCheckedInGuestsCount() throws SQLException;
@@ -24,5 +24,8 @@ public interface RoomDAO {
     int getNewBookingsToday() throws SQLException;
     
     // Room status update
-    boolean updateRoomStatus(int roomNumber, String newStatus) throws SQLException;
+    boolean updateRoomStatus(String roomNumber, String newStatus) throws SQLException;
+    
+    // Get total room count
+    int getTotalRoomCount() throws SQLException;
 } 
