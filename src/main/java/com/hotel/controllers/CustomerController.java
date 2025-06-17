@@ -13,6 +13,7 @@ import javafx.scene.control.SpinnerValueFactory;
 
 import java.sql.SQLException;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class CustomerController {
 
@@ -36,13 +37,29 @@ public class CustomerController {
     @FXML private TextField searchField;
     @FXML private ComboBox<String> filterAdultsComboBox;
     @FXML private ComboBox<String> filterKidsComboBox;
+    @FXML private ComboBox<Integer> itemsPerPageCombo;
+    @FXML private Button firstPageButton;
+    @FXML private Button prevPageButton;
+    @FXML private Button nextPageButton;
+    @FXML private Button lastPageButton;
+    @FXML private Label pageInfoLabel;
+    @FXML private Label statusLabel;
 
     private CustomerDAO customerDAO;
     private ObservableList<Customer> customerList = FXCollections.observableArrayList();
+    
+    // Pagination variables
+    private static final int ITEMS_PER_PAGE = 10;
+    private int currentPage = 1;
+    private int totalItems = 0;
+    private int totalPages = 0;
 
     public void initialize() {
         customerDAO = new CustomerDAOImpl();
         statusMessageLabel.setText("");
+        
+        // Initialize pagination controls
+        setupPaginationControls();
 
         // Setup TableView columns
         colCustomerId.setCellValueFactory(new PropertyValueFactory<>("customerId"));
@@ -84,22 +101,167 @@ public class CustomerController {
 
         // Load initial data
         loadCustomers();
+        
+        // Set up selection listener for the table
+        customersTableView.getSelectionModel().selectedItemProperty().addListener(
+            (obs, oldSelection, newSelection) -> {
+                if (newSelection != null) {
+                    showCustomerDetails(newSelection);
+                }
+            });
     }
 
     private void loadCustomers() {
-        customerList.clear();
-        statusMessageLabel.setText("");
-        
         try {
-            if (customerDAO == null) {
-                setStatusMessage("Error: Customer service not available.", false);
-                return;
+            // Get all customers from the database
+            List<Customer> allCustomers = customerDAO.findAll();
+            
+            // Apply filters to get filtered list
+            List<Customer> filteredCustomers = filterCustomers(allCustomers);
+            
+            // Update total items and pages
+            totalItems = filteredCustomers.size();
+            int itemsPerPage = itemsPerPageCombo.getValue() != null ? 
+                itemsPerPageCombo.getValue() : ITEMS_PER_PAGE;
+            totalPages = (int) Math.ceil((double) totalItems / itemsPerPage);
+            
+            // Ensure current page is within bounds
+            if (currentPage > totalPages && totalPages > 0) {
+                currentPage = totalPages;
+            } else if (currentPage < 1) {
+                currentPage = 1;
             }
-            List<Customer> customers = customerDAO.findAll();
-            customerList.setAll(customers);
+            
+            // Calculate pagination
+            int fromIndex = (currentPage - 1) * itemsPerPage;
+            int toIndex = Math.min(fromIndex + itemsPerPage, totalItems);
+            
+            // Get sublist for current page
+            List<Customer> pagedCustomers = filteredCustomers.subList(fromIndex, toIndex);
+            
+            // Update the table
+            customerList.setAll(pagedCustomers);
+            customersTableView.setItems(customerList);
+            
+            // Update pagination controls
+            updatePaginationControls();
+            
+            System.out.println(String.format("Showing items from index %d to %d", fromIndex, toIndex));
+            
         } catch (SQLException e) {
             setStatusMessage("Error loading customers: " + e.getMessage(), false);
             e.printStackTrace();
+        }
+    }
+    
+    private List<Customer> filterCustomers(List<Customer> customers) {
+        String searchTerm = searchField.getText().toLowerCase();
+        String adultsFilter = filterAdultsComboBox.getValue() != null ? filterAdultsComboBox.getValue() : "";
+        String kidsFilter = filterKidsComboBox.getValue() != null ? filterKidsComboBox.getValue() : "";
+        
+        return customers.stream()
+            .filter(customer -> 
+                (searchTerm.isEmpty() || 
+                 (customer.getFirstName() != null && customer.getFirstName().toLowerCase().contains(searchTerm)) ||
+                 (customer.getLastName() != null && customer.getLastName().toLowerCase().contains(searchTerm)) ||
+                 (customer.getEmail() != null && customer.getEmail().toLowerCase().contains(searchTerm)) ||
+                 (customer.getPhoneNumber() != null && customer.getPhoneNumber().toLowerCase().contains(searchTerm))))
+            .filter(customer -> 
+                adultsFilter.isEmpty() || 
+                adultsFilter.equals("Any") ||
+                (adultsFilter.equals("4+") && customer.getNumberOfAdults() >= 4) ||
+                String.valueOf(customer.getNumberOfAdults()).equals(adultsFilter))
+            .filter(customer -> 
+                kidsFilter.isEmpty() ||
+                kidsFilter.equals("Any") ||
+                (kidsFilter.equals("3+") && customer.getNumberOfKids() >= 3) ||
+                String.valueOf(customer.getNumberOfKids()).equals(kidsFilter))
+            .collect(Collectors.toList());
+    }
+    
+    private void setupPaginationControls() {
+        // Initialize items per page combo box
+        ObservableList<Integer> pageSizes = FXCollections.observableArrayList(5, 10, 25, 50, 100);
+        itemsPerPageCombo.setItems(pageSizes);
+        itemsPerPageCombo.setValue(ITEMS_PER_PAGE);
+        
+        // Add listener to items per page combo box
+        itemsPerPageCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue != null && !newValue.equals(oldValue)) {
+                currentPage = 1; // Reset to first page when changing page size
+                loadCustomers();
+            }
+        });
+        
+        // Set up pagination button actions
+        firstPageButton.setOnAction(e -> handleFirstPage());
+        prevPageButton.setOnAction(e -> handlePrevPage());
+        nextPageButton.setOnAction(e -> handleNextPage());
+        lastPageButton.setOnAction(e -> handleLastPage());
+        
+        // Initialize pagination controls
+        updatePaginationControls();
+    }
+    
+    @FXML
+    private void handleFirstPage() {
+        if (currentPage != 1 && totalPages > 0) {
+            currentPage = 1;
+            loadCustomers();
+        }
+    }
+
+    @FXML
+    private void handlePrevPage() {
+        if (currentPage > 1) {
+            currentPage--;
+            loadCustomers();
+        }
+    }
+
+    @FXML
+    private void handleNextPage() {
+        if (currentPage < totalPages) {
+            currentPage++;
+            loadCustomers();
+        }
+    }
+
+    @FXML
+    private void handleLastPage() {
+        if (currentPage != totalPages && totalPages > 0) {
+            currentPage = totalPages;
+            loadCustomers();
+        }
+    }
+    
+    private void updatePaginationControls() {
+        // Update pagination buttons state
+        firstPageButton.setDisable(currentPage == 1 || totalPages == 0);
+        prevPageButton.setDisable(currentPage == 1 || totalPages == 0);
+        nextPageButton.setDisable(currentPage == totalPages || totalPages == 0);
+        lastPageButton.setDisable(currentPage == totalPages || totalPages == 0);
+        
+        // Update page info label
+        pageInfoLabel.setText(totalPages > 0 
+            ? String.format("Page %d of %d", currentPage, totalPages)
+            : "No data available");
+            
+        // Update status label
+        updateStatusLabel();
+    }
+    
+    private void updateStatusLabel() {
+        int itemsPerPage = itemsPerPageCombo.getValue() != null ? 
+            itemsPerPageCombo.getValue() : ITEMS_PER_PAGE;
+        int fromItem = Math.min((currentPage - 1) * itemsPerPage + 1, totalItems);
+        int toItem = Math.min(currentPage * itemsPerPage, totalItems);
+        
+        if (totalItems > 0) {
+            statusLabel.setText(String.format("Showing %d to %d of %d entries", 
+                fromItem, toItem, totalItems));
+        } else {
+            statusLabel.setText("No entries to display");
         }
     }
 
@@ -294,15 +456,23 @@ public class CustomerController {
     }
 
     @FXML
+    private void handleSearch() {
+        currentPage = 1; // Reset to first page when searching
+        loadCustomers();
+    }
+
+    @FXML
     private void handleClearFilters() {
         searchField.clear();
-        filterAdultsComboBox.setValue("Any");
-        filterKidsComboBox.setValue("Any");
+        filterAdultsComboBox.getSelectionModel().clearSelection();
+        filterKidsComboBox.getSelectionModel().clearSelection();
+        currentPage = 1; // Reset to first page when clearing filters
         loadCustomers();
     }
 
     @FXML
     private void handleRefresh() {
+        currentPage = 1; // Reset to first page when refreshing
         loadCustomers();
     }
 
