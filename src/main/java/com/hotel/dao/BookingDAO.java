@@ -16,6 +16,7 @@ public interface BookingDAO {
     List<Booking> findByCustomerId(int customerId) throws SQLException;
     List<Booking> findByRoomNumber(int roomNumber) throws SQLException;
     // Dashboard methods
+    
     int getCheckedInGuestsCount() throws SQLException;
     int getExpectedCheckInsToday() throws SQLException;
     int getExpectedCheckOutsToday() throws SQLException;
