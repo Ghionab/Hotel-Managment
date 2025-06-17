@@ -159,6 +159,7 @@ public class AvailableServicesController implements Initializable {
         }
     }
     
+    
     private List<Service> filterServices(List<Service> services) {
         String searchTerm = searchField.getText().toLowerCase();
         
