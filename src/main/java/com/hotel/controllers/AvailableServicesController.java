@@ -72,7 +72,6 @@ public class AvailableServicesController implements Initializable {
             }
         });
         
-        // Set up context menu actions
         editMenuItem.setOnAction(e -> handleEditService());
         deleteMenuItem.setOnAction(e -> handleDeleteService());
         
