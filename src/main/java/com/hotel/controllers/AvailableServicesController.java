@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
+
 public class AvailableServicesController implements Initializable {
     @FXML private TableView<Service> servicesTable;
     @FXML private TableColumn<Service, Integer> serviceIdColumn;
