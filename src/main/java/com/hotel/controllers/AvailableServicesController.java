@@ -14,6 +14,7 @@ import java.net.URL;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.ResourceBundle;
+import java.util.stream.Collectors;
 
 public class AvailableServicesController implements Initializable {
     @FXML private TableView<Service> servicesTable;
@@ -30,20 +31,29 @@ public class AvailableServicesController implements Initializable {
     @FXML private TextArea descriptionArea;
     @FXML private MenuItem editMenuItem;
     @FXML private MenuItem deleteMenuItem;
+    @FXML private TextField searchField;
+    @FXML private ComboBox<Integer> itemsPerPageCombo;
+    @FXML private Button firstPageButton;
+    @FXML private Button prevPageButton;
+    @FXML private Button nextPageButton;
+    @FXML private Button lastPageButton;
+    @FXML private Label pageInfoLabel;
+    @FXML private Label statusLabel;
 
     private ServiceDAO serviceDAO = new ServiceDAOImpl();
     private ObservableList<Service> servicesData;
     private Service selectedService;
+    
+    // Pagination variables
+    private static final int ITEMS_PER_PAGE = 10;
+    private int currentPage = 1;
+    private int totalItems = 0;
+    private int totalPages = 0;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        serviceIdColumn.setCellValueFactory(new PropertyValueFactory<>("serviceId"));
-        serviceNameColumn.setCellValueFactory(new PropertyValueFactory<>("serviceName"));
-        priceColumn.setCellValueFactory(new PropertyValueFactory<>("price"));
-        descriptionColumn.setCellValueFactory(new PropertyValueFactory<>("description"));
-        
-        servicesData = FXCollections.observableArrayList();
-        servicesTable.setItems(servicesData);
+        setupTableColumns();
+        setupPaginationControls();
         loadServices();
         
         // Set up selection model
@@ -72,14 +82,94 @@ public class AvailableServicesController implements Initializable {
         clearBtn.setOnAction(e -> clearFields());
     }
 
+    private void setupTableColumns() {
+        serviceIdColumn.setCellValueFactory(new PropertyValueFactory<>("serviceId"));
+        serviceNameColumn.setCellValueFactory(new PropertyValueFactory<>("serviceName"));
+        priceColumn.setCellValueFactory(new PropertyValueFactory<>("price"));
+        descriptionColumn.setCellValueFactory(new PropertyValueFactory<>("description"));
+        
+        servicesData = FXCollections.observableArrayList();
+        servicesTable.setItems(servicesData);
+    }
+    
+    private void setupPaginationControls() {
+        // Initialize items per page combo box
+        ObservableList<Integer> pageSizes = FXCollections.observableArrayList(5, 10, 25, 50, 100);
+        itemsPerPageCombo.setItems(pageSizes);
+        itemsPerPageCombo.setValue(ITEMS_PER_PAGE);
+        
+        // Add listener to items per page combo box
+        itemsPerPageCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue != null && !newValue.equals(oldValue)) {
+                currentPage = 1; // Reset to first page when changing page size
+                loadServices();
+            }
+        });
+        
+        // Set up pagination button actions
+        firstPageButton.setOnAction(e -> handleFirstPage());
+        prevPageButton.setOnAction(e -> handlePrevPage());
+        nextPageButton.setOnAction(e -> handleNextPage());
+        lastPageButton.setOnAction(e -> handleLastPage());
+        
+        // Set up search field listener
+        searchField.textProperty().addListener((obs, oldVal, newVal) -> {
+            currentPage = 1;
+            loadServices();
+        });
+    }
+    
     private void loadServices() {
         try {
-            List<Service> services = serviceDAO.getAllServices();
-            servicesData.clear();
-            servicesData.addAll(services);
+            // Get all services from the database
+            List<Service> allServices = serviceDAO.getAllServices();
+            
+            // Apply filters to get filtered list
+            List<Service> filteredServices = filterServices(allServices);
+            
+            // Update total items and pages
+            totalItems = filteredServices.size();
+            int itemsPerPage = itemsPerPageCombo.getValue() != null ? 
+                itemsPerPageCombo.getValue() : ITEMS_PER_PAGE;
+            totalPages = (int) Math.ceil((double) totalItems / itemsPerPage);
+            
+            // Ensure current page is within bounds
+            if (currentPage > totalPages && totalPages > 0) {
+                currentPage = totalPages;
+            } else if (currentPage < 1) {
+                currentPage = 1;
+            }
+            
+            // Calculate pagination
+            int fromIndex = (currentPage - 1) * itemsPerPage;
+            int toIndex = Math.min(fromIndex + itemsPerPage, totalItems);
+            
+            // Get sublist for current page
+            List<Service> pagedServices = filteredServices.subList(fromIndex, toIndex);
+            
+            // Update the table
+            servicesData.setAll(pagedServices);
+            
+            // Update pagination controls
+            updatePaginationControls();
+            
         } catch (SQLException e) {
-            showDatabaseError("Could not load services", e);
+            showError("Error loading services: " + e.getMessage());
+            e.printStackTrace();
         }
+    }
+    
+    private List<Service> filterServices(List<Service> services) {
+        String searchTerm = searchField.getText().toLowerCase();
+        
+        return services.stream()
+            .filter(service -> 
+                searchTerm.isEmpty() || 
+                (service.getServiceName() != null && service.getServiceName().toLowerCase().contains(searchTerm)) ||
+                (service.getDescription() != null && service.getDescription().toLowerCase().contains(searchTerm)) ||
+                String.valueOf(service.getPrice()).contains(searchTerm) ||
+                String.valueOf(service.getServiceId()).contains(searchTerm))
+            .collect(Collectors.toList());
     }
 
     @FXML
@@ -87,15 +177,17 @@ public class AvailableServicesController implements Initializable {
         if (isInputValid()) {
             try {
                 Service service = new Service();
-                service.setServiceName(serviceNameField.getText());
-                service.setPrice(new BigDecimal(priceField.getText()));
-                service.setDescription(descriptionArea.getText());
+                service.setServiceName(serviceNameField.getText().trim());
+                service.setPrice(new BigDecimal(priceField.getText().trim()));
+                service.setDescription(descriptionArea.getText().trim());
                 
                 serviceDAO.addService(service);
                 clearFields();
                 loadServices();
+                showSuccess("Service added successfully");
             } catch (SQLException e) {
-                showDatabaseError("Could not add service", e);
+                showError("Could not add service: " + e.getMessage());
+                e.printStackTrace();
             }
         }
     }
@@ -104,36 +196,59 @@ public class AvailableServicesController implements Initializable {
     private void handleEditService() {
         if (selectedService != null && isInputValid()) {
             try {
-                selectedService.setServiceName(serviceNameField.getText());
-                selectedService.setPrice(new BigDecimal(priceField.getText()));
-                selectedService.setDescription(descriptionArea.getText());
+                String serviceName = serviceNameField.getText().trim();
+                String priceText = this.priceField.getText().trim();
+                String description = descriptionArea.getText().trim();
                 
+                double price = Double.parseDouble(priceText);
+                if (price <= 0) {
+                    showError("Price must be greater than zero");
+                    return;
+                }
+
+                selectedService.setServiceName(serviceName);
+                selectedService.setPrice(BigDecimal.valueOf(price));
+                selectedService.setDescription(description);
+
                 serviceDAO.updateService(selectedService);
-                clearFields();
                 loadServices();
+                clearFields();
+                showSuccess("Service updated successfully");
+                
+                // Reset the add button to its original state
+                addServiceBtn.setText("Add Service");
+                addServiceBtn.setOnAction(e -> handleAddService());
+                
+            } catch (NumberFormatException e) {
+                showError("Please enter a valid price");
             } catch (SQLException e) {
-                showDatabaseError("Could not edit service", e);
+                showError("Error updating service: " + e.getMessage());
+                e.printStackTrace();
             }
         }
     }
-
+    
     @FXML
     private void handleDeleteService() {
         if (selectedService != null) {
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle("Delete Service");
-            alert.setHeaderText("Are you sure you want to delete this service?");
-            alert.setContentText("Service: " + selectedService.getServiceName());
-
-            if (alert.showAndWait().get() == ButtonType.OK) {
-                try {
-                    serviceDAO.deleteService(selectedService.getServiceId());
-                    clearFields();
-                    loadServices();
-                } catch (SQLException e) {
-                    showDatabaseError("Could not delete service", e);
+            alert.setTitle("Confirm Delete");
+            alert.setHeaderText(null);
+            alert.setContentText("Are you sure you want to delete this service?");
+            
+            alert.showAndWait().ifPresent(response -> {
+                if (response == ButtonType.OK) {
+                    try {
+                        serviceDAO.deleteService(selectedService.getServiceId());
+                        loadServices();
+                        clearFields();
+                        showSuccess("Service deleted successfully");
+                    } catch (SQLException e) {
+                        showError("Error deleting service: " + e.getMessage());
+                        e.printStackTrace();
+                    }
                 }
-            }
+            });
         }
     }
 
@@ -147,42 +262,127 @@ public class AvailableServicesController implements Initializable {
         serviceNameField.clear();
         priceField.clear();
         descriptionArea.clear();
-        selectedService = null;
     }
 
     private boolean isInputValid() {
         String errorMessage = "";
-        
+
         if (serviceNameField.getText() == null || serviceNameField.getText().trim().isEmpty()) {
-            errorMessage += "Service Name is required\n";
+            errorMessage += "Service Name is required!\n";
         }
         
         if (priceField.getText() == null || priceField.getText().trim().isEmpty()) {
-            errorMessage += "Price is required\n";
+            errorMessage += "Price is required!\n";
         } else {
             try {
-                new BigDecimal(priceField.getText());
+                double price = Double.parseDouble(priceField.getText().trim());
+                if (price <= 0) {
+                    errorMessage += "Price must be greater than zero!\n";
+                }
             } catch (NumberFormatException e) {
-                errorMessage += "Price must be a valid number\n";
+                errorMessage += "Price must be a valid number!\n";
             }
         }
 
         if (errorMessage.length() > 0) {
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Invalid Fields");
-            alert.setHeaderText("Please correct invalid fields");
-            alert.setContentText(errorMessage);
-            alert.showAndWait();
+            showError(errorMessage);
             return false;
         }
         return true;
     }
 
-    private void showDatabaseError(String message, Exception e) {
+    @FXML
+    private void showError(String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("Database Error");
-        alert.setHeaderText(message);
-        alert.setContentText(e.getMessage());
+        alert.setTitle("Error");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
         alert.showAndWait();
+    }
+    
+    private void showSuccess(String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Success");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private void updatePaginationControls() {
+        // Update pagination buttons state
+        firstPageButton.setDisable(currentPage == 1 || totalPages == 0);
+        prevPageButton.setDisable(currentPage == 1 || totalPages == 0);
+        nextPageButton.setDisable(currentPage == totalPages || totalPages == 0);
+        lastPageButton.setDisable(currentPage == totalPages || totalPages == 0);
+        
+        // Update page info label
+        pageInfoLabel.setText(totalPages > 0 
+            ? String.format("Page %d of %d", currentPage, totalPages)
+            : "No data available");
+            
+        // Update status label
+        updateStatusLabel();
+    }
+    
+    private void updateStatusLabel() {
+        int itemsPerPage = itemsPerPageCombo.getValue() != null ? 
+            itemsPerPageCombo.getValue() : ITEMS_PER_PAGE;
+        int fromItem = Math.min((currentPage - 1) * itemsPerPage + 1, totalItems);
+        int toItem = Math.min(currentPage * itemsPerPage, totalItems);
+        
+        if (totalItems > 0) {
+            statusLabel.setText(String.format("Showing %d to %d of %d entries", 
+                fromItem, toItem, totalItems));
+        } else {
+            statusLabel.setText("No entries to display");
+        }
+    }
+    
+    @FXML
+    private void handleFirstPage() {
+        currentPage = 1;
+        loadServices();
+    }
+    
+    @FXML
+    private void handlePrevPage() {
+        if (currentPage > 1) {
+            currentPage--;
+            loadServices();
+        }
+    }
+    
+    @FXML
+    private void handleNextPage() {
+        if (currentPage < totalPages) {
+            currentPage++;
+            loadServices();
+        }
+    }
+    
+    @FXML
+    private void handleLastPage() {
+        currentPage = totalPages;
+        loadServices();
+    }
+    
+    @FXML
+    private void handleSearch() {
+        currentPage = 1; // Reset to first page when searching
+        loadServices();
+    }
+    
+    @FXML
+    private void handleClearFilters() {
+        searchField.clear();
+        currentPage = 1;
+        loadServices();
+    }
+    
+    @FXML
+    private void handleRefresh() {
+        currentPage = 1;
+        searchField.clear();
+        loadServices();
     }
 }
