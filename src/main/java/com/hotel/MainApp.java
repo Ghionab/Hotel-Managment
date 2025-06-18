@@ -9,7 +9,7 @@ import javafx.stage.Stage;
 import java.io.IOException;
 import java.net.URL;
 
-// Import controllers if needed 
+// Import controllers if 
 import com.hotel.controllers.MainController;
 
 public class MainApp extends Application {
