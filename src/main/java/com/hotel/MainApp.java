@@ -14,7 +14,7 @@ import com.hotel.controllers.MainController;
 
 public class MainApp extends Application {
 
-    private static Stage primaryStage; // Keep a reference to the primary stage
+    private static Stage primaryStage; // Keep a reference to the
 
     @Override
     public void start(Stage stage) throws IOException {
