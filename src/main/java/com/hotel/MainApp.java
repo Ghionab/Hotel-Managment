@@ -18,7 +18,7 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage stage) throws IOException {
-        primaryStage = stage; // Store the stage reference
+        primaryStage = stage; 
         primaryStage.setTitle("Hotel Management System - Login");
         showLoginScreen();
     }
