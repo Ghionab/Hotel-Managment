@@ -21,7 +21,6 @@ public class MainApp extends Application {
     }
 
     public static void showLoginScreen() throws IOException {
-        // Correct path relative to the classpath (resources folder)
         String fxmlPath = "/com/hotel/fxml/LoginPage.fxml";
         URL fxmlLocation = MainApp.class.getResource(fxmlPath);
 
