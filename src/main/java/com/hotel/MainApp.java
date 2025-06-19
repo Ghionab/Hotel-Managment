@@ -36,7 +36,7 @@ public class MainApp extends Application {
         FXMLLoader loader = new FXMLLoader(fxmlLocation);
         Parent root = loader.load();
 
-        // Apply CSS
+       
         Scene scene = new Scene(root, 400, 350); // Adjusted size slightly
         String cssPath = "/com/hotel/css/styles.css";
         URL cssUrl = MainApp.class.getResource(cssPath);
