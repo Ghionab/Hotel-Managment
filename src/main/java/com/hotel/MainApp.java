@@ -28,7 +28,8 @@ public class MainApp extends Application {
             System.err.println("FATAL ERROR: Cannot find FXML file: " + fxmlPath);
             System.err.println("Check if 'src/main/resources' is marked as a resources root in your IDE and included in the build.");
             // Consider showing a critical error dialog before exiting
-            // Platform.exit(); // Use javafx.application.Platform
+            // Platform.exit();
+            
             return;
         }
 
